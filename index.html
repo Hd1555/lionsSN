@@ -1,0 +1,233 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Punt Trick Play Predictor</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #1B1B1B;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+        }
+
+        h2 {
+            margin: 20px 0;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        input[type="number"] {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 2px solid #0076B6;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        input[type="submit"] {
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #0076B6;
+            color: #ffffff;
+        }
+
+        .down-distance-display, .probability-display {
+            background-color: black;
+            font-size: 20px;
+            font-weight: bold;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            width: 250px;
+        }
+
+        .field {
+            width: 2500px;
+            height: 700px;
+            background: #1D5C5C;
+            background-image: repeating-linear-gradient(
+                90deg,
+                rgba(29, 92, 92, 0.15) 0,
+                rgba(29, 92, 92, 0.15) 50px,
+                rgba(162, 200, 162, 0.15) 50px,
+                rgba(162, 200, 162, 0.15) 100px
+            );
+            position: relative;
+            border: 5px solid #FFFFFF;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+        }
+
+        .end-zone {
+            width: 10%;
+            height: 100%;
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #FFFFFF;
+            font-size: 80px;
+            font-weight: bold;
+            background: #0076B6;
+        }
+
+        .end-zone.left {
+            left: 0;
+            writing-mode: vertical-lr;
+        }
+
+        .end-zone.right {
+            right: 0;
+            writing-mode: vertical-rl;
+        }
+
+        .yard-line {
+            width: 2px;
+            height: 100%;
+            background: white;
+            position: absolute;
+        }
+
+        .yard-marker {
+            position: absolute;
+            color: white;
+            font-size: 36px;
+            font-weight: bold;
+            transform: translateX(-50%);
+        }
+
+        .hash {
+            width: 4px;
+            height: 20px;
+            background: white;
+            position: absolute;
+        }
+
+        .lions-logo {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 120px;
+            font-weight: bold;
+            color: white;
+            opacity: 0.1;
+        }
+
+        /* Play Marker */
+        #play-marker {
+            position: absolute;
+            height: 100%;
+            width: 5px;
+            background-color: yellow;
+        }
+
+        /* Adjustable Line for Yards to Go */
+        #adjustable-line {
+            position: absolute;
+            height: 100%;
+            width: 5px;
+            background-color: orange;
+        }
+
+        /* Play Info */
+        #play-info {
+            position: absolute;
+            width: 150px;
+            text-align: center;
+            background: black;
+            color: yellow;
+            border-radius: 5px;
+            padding: 5px;
+            font-size: 18px;
+            bottom: 110%;
+        }
+    </style>
+</head>
+<body>
+    <h2>Punt Trick Play Prediction Model</h2>
+
+    <div class="container">
+        <form id="prediction-form" method="POST" action="/predict">
+            <label for="down">Down:</label>
+            <input type="number" id="down" name="down" required min="1" max="4" oninput="updateDownDistance()" value="{{ down }}">
+
+            <label for="yardline_100">Yardline (0-100 scale):</label>
+            <input type="number" id="yardline_100" name="yardline_100" required min="0" max="100" oninput="updateFieldMarker()" value="{{ yardline_100 }}">
+
+            <label for="ydstogo">Yards to Go:</label>
+            <input type="number" id="ydstogo" name="ydstogo" required min="1" max="50" oninput="updateFieldMarker()" value="{{ ydstogo }}">
+
+            <label for="epa">EPA (Expected Points Added):</label>
+            <input type="number" id="epa" name="epa" required step="0.01" value="{{ epa }}">
+
+            <input type="submit" value="Predict Punt Trick Play Success">
+        </form>
+
+        <!-- Always visible probability display -->
+        <div class="down-distance-display" id="down-distance-box">{{ down }} & {{ ydstogo }}</div>
+        <div class="probability-display" id="probability-box">{{ prediction_text or 'Punt Trick Play Probability: 0%' }}</div>
+    </div>
+
+    <div class="field">
+        <div class="lions-logo">LIONS</div>
+        <div class="end-zone left">LIONS</div>
+        <div class="end-zone right">LIONS</div>
+
+        <div id="play-marker" style="left: {{ yardline_100 | default(50) }}%;"></div>
+        <div id="adjustable-line" style="left: {{ (yardline_100 + ydstogo) | default(60) }}%;"></div>
+        <div id="play-info">{{ down }} & {{ ydstogo }} at {{ yardline_100 }}</div>
+    </div>
+
+    <script>
+        function updateFieldMarker() {
+            const field = document.querySelector('.field');
+            const marker = document.getElementById('play-marker');
+            const adjustableLine = document.getElementById('adjustable-line');
+            const playInfo = document.getElementById('play-info');
+
+            const yardline = parseInt(document.getElementById('yardline_100').value) || 0;
+            const ydstogo = parseInt(document.getElementById('ydstogo').value) || 0;
+
+            const yardlinePosition = (yardline / 100) * field.offsetWidth;
+            const adjustablePosition = ((yardline + ydstogo) / 100) * field.offsetWidth;
+
+            marker.style.left = yardlinePosition + 'px';
+            adjustableLine.style.left = adjustablePosition + 'px';
+
+            playInfo.style.left = yardlinePosition + 'px';
+            playInfo.innerHTML = `${document.getElementById('down').value || "1"} & ${ydstogo || "10"} at ${yardline} yard line`;
+        }
+
+        function updateDownDistance() {
+            const down = document.getElementById('down').value;
+            const ydstogo = document.getElementById('ydstogo').value;
+            const downDistanceBox = document.getElementById('down-distance-box');
+
+            downDistanceBox.innerHTML = `${down || "1"} & ${ydstogo || "10"}`;
+        }
+    </script>
+</body>
+</html>
