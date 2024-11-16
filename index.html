@@ -27,19 +27,21 @@
         }
 
         form {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 15px;
             margin: 20px 0;
         }
 
-        input[type="number"] {
+        input[type="number"], select {
             padding: 10px;
             font-size: 16px;
             border-radius: 5px;
             border: 2px solid #0076B6;
             width: 100%;
             max-width: 300px;
+            background-color: #1B1B1B;
+            color: #ffffff;
         }
 
         input[type="submit"] {
@@ -51,16 +53,17 @@
             cursor: pointer;
             background-color: #0076B6;
             color: #ffffff;
+            grid-column: span 2;
         }
 
-        .down-distance-display, .probability-display {
+        .probability-display {
             background-color: black;
             font-size: 20px;
             font-weight: bold;
             padding: 15px;
             border-radius: 5px;
             text-align: center;
-            width: 250px;
+            width: 300px;
         }
 
         .field {
@@ -91,38 +94,16 @@
             font-size: 80px;
             font-weight: bold;
             background: #0076B6;
+            writing-mode: vertical-lr;
         }
 
         .end-zone.left {
             left: 0;
-            writing-mode: vertical-lr;
         }
 
         .end-zone.right {
             right: 0;
             writing-mode: vertical-rl;
-        }
-
-        .yard-line {
-            width: 2px;
-            height: 100%;
-            background: white;
-            position: absolute;
-        }
-
-        .yard-marker {
-            position: absolute;
-            color: white;
-            font-size: 36px;
-            font-weight: bold;
-            transform: translateX(-50%);
-        }
-
-        .hash {
-            width: 4px;
-            height: 20px;
-            background: white;
-            position: absolute;
         }
 
         .lions-logo {
@@ -136,7 +117,6 @@
             opacity: 0.1;
         }
 
-        /* Play Marker */
         #play-marker {
             position: absolute;
             height: 100%;
@@ -144,25 +124,45 @@
             background-color: yellow;
         }
 
-        /* Adjustable Line for Yards to Go */
         #adjustable-line {
             position: absolute;
             height: 100%;
             width: 5px;
-            background-color: orange;
+            background-color: lime;
         }
 
-        /* Play Info */
-        #play-info {
+        .scoreboard {
             position: absolute;
-            width: 150px;
-            text-align: center;
+            top: 10px;
+            left: 350px;
+            background: black;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 18px;
+            width: 250px;
+            font-family: Arial, sans-serif;
+        }
+
+        .scoreboard div {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .play-info {
+            position: absolute;
+            top: -120px;
+            left: 50%;
+            transform: translateX(-50%);
             background: black;
             color: yellow;
+            padding: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
             border-radius: 5px;
-            padding: 5px;
-            font-size: 18px;
-            bottom: 110%;
+            width: 400px;
         }
     </style>
 </head>
@@ -171,63 +171,52 @@
 
     <div class="container">
         <form id="prediction-form" method="POST" action="/predict">
-            <label for="down">Down:</label>
-            <input type="number" id="down" name="down" required min="1" max="4" oninput="updateDownDistance()" value="{{ down }}">
-
             <label for="yardline_100">Yardline (0-100 scale):</label>
-            <input type="number" id="yardline_100" name="yardline_100" required min="0" max="100" oninput="updateFieldMarker()" value="{{ yardline_100 }}">
+            <input type="number" id="yardline_100" name="yardline_100" required min="0" max="100" value="{{ yardline_100 }}" oninput="updateFieldMarker()">
 
             <label for="ydstogo">Yards to Go:</label>
-            <input type="number" id="ydstogo" name="ydstogo" required min="1" max="50" oninput="updateFieldMarker()" value="{{ ydstogo }}">
+            <input type="number" id="ydstogo" name="ydstogo" required min="1" max="50" value="{{ ydstogo }}" oninput="updateFieldMarker()">
 
-            <label for="epa">EPA (Expected Points Added):</label>
-            <input type="number" id="epa" name="epa" required step="0.01" value="{{ epa }}">
+            <label for="time_remaining">Time Remaining (seconds):</label>
+            <input type="number" id="time_remaining" name="time_remaining" required min="0" max="3600" value="{{ time_remaining }}">
+
+            <label for="quarter">Quarter:</label>
+            <select id="quarter" name="quarter" required>
+                <option value="1">1st Quarter</option>
+                <option value="2">2nd Quarter</option>
+                <option value="3">3rd Quarter</option>
+                <option value="4">4th Quarter</option>
+            </select>
+
+            <label for="lions_score">Lions Score:</label>
+            <input type="number" id="lions_score" name="lions_score" required min="0" max="100" value="{{ lions_score }}">
+
+            <label for="opponent_score">Opponent Score:</label>
+            <input type="number" id="opponent_score" name="opponent_score" required min="0" max="100" value="{{ opponent_score }}">
+
+            <label for="wind">Wind Speed (mph):</label>
+            <input type="number" id="wind" name="wind" required min="0" max="50" step="0.1" value="{{ wind }}">
 
             <input type="submit" value="Predict Punt Trick Play Success">
         </form>
 
-        <!-- Always visible probability display -->
-        <div class="down-distance-display" id="down-distance-box">{{ down }} & {{ ydstogo }}</div>
-        <div class="probability-display" id="probability-box">{{ prediction_text or 'Punt Trick Play Probability: 0%' }}</div>
+        <div class="probability-display" id="probability-box">
+            {{ prediction_text or 'Punt Trick Play Probability: 0%' }}
+        </div>
+
+        <div class="field">
+            <div class="lions-logo">LIONS</div>
+            <div class="end-zone left">LIONS</div>
+            <div class="end-zone right">LIONS</div>
+
+<div class="scoreboard">
+    <div>
+        <b>DET:</b> {{ lions_score }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>OPS:</b> {{ opponent_score }}
     </div>
-
-    <div class="field">
-        <div class="lions-logo">LIONS</div>
-        <div class="end-zone left">LIONS</div>
-        <div class="end-zone right">LIONS</div>
-
-        <div id="play-marker" style="left: {{ yardline_100 | default(50) }}%;"></div>
-        <div id="adjustable-line" style="left: {{ (yardline_100 + ydstogo) | default(60) }}%;"></div>
-        <div id="play-info">{{ down }} & {{ ydstogo }} at {{ yardline_100 }}</div>
+    <div>
+        <b>4TH</b> & {{ ydstogo }} Yards
     </div>
-
-    <script>
-        function updateFieldMarker() {
-            const field = document.querySelector('.field');
-            const marker = document.getElementById('play-marker');
-            const adjustableLine = document.getElementById('adjustable-line');
-            const playInfo = document.getElementById('play-info');
-
-            const yardline = parseInt(document.getElementById('yardline_100').value) || 0;
-            const ydstogo = parseInt(document.getElementById('ydstogo').value) || 0;
-
-            const yardlinePosition = (yardline / 100) * field.offsetWidth;
-            const adjustablePosition = ((yardline + ydstogo) / 100) * field.offsetWidth;
-
-            marker.style.left = yardlinePosition + 'px';
-            adjustableLine.style.left = adjustablePosition + 'px';
-
-            playInfo.style.left = yardlinePosition + 'px';
-            playInfo.innerHTML = `${document.getElementById('down').value || "1"} & ${ydstogo || "10"} at ${yardline} yard line`;
-        }
-
-        function updateDownDistance() {
-            const down = document.getElementById('down').value;
-            const ydstogo = document.getElementById('ydstogo').value;
-            const downDistanceBox = document.getElementById('down-distance-box');
-
-            downDistanceBox.innerHTML = `${down || "1"} & ${ydstogo || "10"}`;
-        }
-    </script>
-</body>
-</html>
+    <div>
+        <b>4th Quarter</b> &nbsp;&nbsp; {{ time_remaining }}
+    </div>
+</div>
